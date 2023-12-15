@@ -51,7 +51,7 @@ int currentMode = 0; // Off, jumpDelay, jumpRandom
 String modes[] = {"Off", "Jump Delay", "Jump Random"};
 
 int channelNum = 2;
-String channelToJumpTo = "2"; 
+String channelToJumpTo = "2";
 String secondsDelay = "60";
 uint32_t millisDelay = 1000000; // 100 seconds
 uint32_t nextMillis = 0;
@@ -59,7 +59,6 @@ uint32_t nextMillis = 0;
 struct TaskParameters
 {
   int currentMode;
-  uint32_t nextMillis = 0;
   uint32_t millisDelay;
   int channelNum;
   // Add other required variables here
@@ -93,9 +92,16 @@ void setup()
 
 TaskHandle_t sendingTaskHandle = NULL;
 
-// Function to create or update the sending task
-void createOrUpdateSendingTask(TaskParameters *params)
+void startTask()
 {
+  // Create an instance of TaskParameters
+  TaskParameters *taskParams = new TaskParameters;
+
+  // Set initial values for the variables
+  taskParams->currentMode = currentMode;
+  taskParams->millisDelay = millisDelay;
+  taskParams->channelNum = channelNum;
+
   // Check if a task is already running
   if (sendingTaskHandle != NULL)
   {
@@ -109,24 +115,15 @@ void createOrUpdateSendingTask(TaskParameters *params)
       doTheSendingTask,  // Function that should be called
       "Send IR code ",   // Name of the task (for debugging)
       10000,             // Stack size (bytes)
-      params,            // Parameter to pass
+      taskParams,        // Parameter to pass
       1,                 // Task priority
       &sendingTaskHandle // Task handle
   );
 }
-void startTask()
+
+void cleanupTask(TaskParameters *params)
 {
-  // Create an instance of TaskParameters
-  TaskParameters taskParams;
-
-  // Set initial values for the variables
-  taskParams.currentMode = currentMode;
-  taskParams.nextMillis = 0;
-  taskParams.millisDelay = millisDelay;
-  taskParams.channelNum = channelNum;
-
-  // Call the function to create or update the sending task
-  createOrUpdateSendingTask(&taskParams);
+  delete params;
 }
 
 void loop()
@@ -173,12 +170,24 @@ void loop()
             else if (header.indexOf("GET /mode/JumpDelay") >= 0)
             {
               Serial.println("set toJumpDelay");
+              if (sendingTaskHandle != NULL)
+              {
+                // Delete the existing task
+                vTaskDelete(sendingTaskHandle);
+                sendingTaskHandle = NULL;
+              }
               currentMode = 1;
               startTask();
             }
             else if (header.indexOf("GET /mode/JumpRandom") >= 0)
             {
               Serial.println("set to JumpRandom");
+              if (sendingTaskHandle != NULL)
+              {
+                // Delete the existing task
+                vTaskDelete(sendingTaskHandle);
+                sendingTaskHandle = NULL;
+              }
               currentMode = 2;
               startTask();
             }
@@ -188,6 +197,12 @@ void loop()
               int paramIndex = header.indexOf("channelNumberInput=");
               if (paramIndex >= 0)
               {
+                if (sendingTaskHandle != NULL)
+                {
+                  // Delete the existing task
+                  vTaskDelete(sendingTaskHandle);
+                  sendingTaskHandle = NULL;
+                }
                 int endIndex = header.indexOf(" ", paramIndex);
                 String numberValue = header.substring(paramIndex + 19, endIndex);
                 channelToJumpTo = numberValue;
@@ -201,6 +216,12 @@ void loop()
               int paramIndex = header.indexOf("delayNumberInput=");
               if (paramIndex >= 0)
               {
+                if (sendingTaskHandle != NULL)
+                {
+                  // Delete the existing task
+                  vTaskDelete(sendingTaskHandle);
+                  sendingTaskHandle = NULL;
+                }
                 int endIndex = header.indexOf(" ", paramIndex);
                 String delayValue = header.substring(paramIndex + 17, endIndex);
                 secondsDelay = delayValue;
@@ -283,31 +304,38 @@ void doTheSendingTask(void *parameter)
   // Cast the parameter back to the structure type
   TaskParameters *params = (TaskParameters *)parameter;
 
+  uint32_t nextMillisTask = 0;
+  int mode = params->currentMode;
+  uint32_t millisDelayTask = params->millisDelay;
+  int channelTask = params->channelNum;
+  cleanupTask(params);
   while (1)
   {
+
     delay(1000);
-    Serial.println("waiting");
+    Serial.print("waiting:");
+    Serial.println(mode);
 
     // Access variables using the structure
-    switch (params->currentMode)
+    switch (mode)
     {
     case 0:
       Serial.println("doing nothing");
       break;
     case 1:
-      if (millis() > params->nextMillis)
+      if (millis() > nextMillisTask)
       {
-        params->nextMillis = millis() + params->millisDelay;
+        nextMillisTask = millis() + millisDelayTask;
         Serial.println("Sending delay");
-        irsend.sendPronto(numberBTNs[params->channelNum], NUMBER_OF_REPEATS);
+        irsend.sendPronto(numberBTNs[channelTask], NUMBER_OF_REPEATS);
       }
       break;
     case 2:
-      if (millis() > params->nextMillis)
+      if (millis() > nextMillisTask)
       {
-        params->nextMillis = millis() + random(300000, 360000);
+        nextMillisTask = millis() + random(300000, 360000);
         Serial.println("Sending random");
-        irsend.sendPronto(numberBTNs[params->channelNum], NUMBER_OF_REPEATS);
+        irsend.sendPronto(numberBTNs[channelTask], NUMBER_OF_REPEATS);
       }
       break;
     default:
