@@ -1,0 +1,39 @@
+0,Power (toggle)
+1,Display
+2,Channel Up
+3,Select
+4,Channel Down
+5,Category Up
+6,Category Down
+7,Fast Forward
+8,Menu
+9,Direct Tune
+10,Volume Up
+11,Play/Pause
+12,Preset Band
+13,Memory
+14,Volume Down
+15,Rewind
+16,1
+17,2
+18,3
+19,Love
+20,4
+21,5
+22,6
+23,Back/Previous
+24,7
+25,8
+26,9
+27,FM Transmitter
+28,Mute
+29,0
+30,Jump
+31,Options
+32,Power On
+33,Power Off
+34,Sync
+35,Preset Up
+36,Preset Down
+37,Replay
+
