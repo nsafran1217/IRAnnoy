@@ -104,7 +104,7 @@ String getTextBoxValue(String InputName)
   if (paramIndex >= 0)
   {
     int endIndex = header.indexOf(" ", paramIndex);
-    String numberValue = header.substring(paramIndex + InputName.length(), endIndex);
+    String numberValue = header.substring(paramIndex + InputName.length() + 1, endIndex);
     return numberValue;
   }
   return "";
@@ -120,6 +120,14 @@ void setChannel(int channel)
   irsend.sendPronto(numberBTNs[channelTens], NUMBER_OF_REPEATS);
   delay(400);
   irsend.sendPronto(numberBTNs[channelOnes], NUMBER_OF_REPEATS);
+}
+void powerOn()
+{
+  irsend.sendPronto(PowerOnBTN, NUMBER_OF_REPEATS);
+}
+void powerOff()
+{
+  irsend.sendPronto(PowerOffBTN, NUMBER_OF_REPEATS);
 }
 void loop()
 {
@@ -151,11 +159,25 @@ void loop()
             client.println();
 
             // turns the GPIOs on and off
-            if (header.indexOf("GET /mode/off") >= 0)
+            if (header.indexOf("GET /mode/Modeoff") >= 0)
             {
               KillTask();
               Serial.println("set to off");
               currentMode = 0;
+            }
+            else if (header.indexOf("GET /mode/PwrOn") >= 0)
+            {
+              KillTask();
+              Serial.println("ON");
+              currentMode = 0;
+              powerOff();
+            }
+            else if (header.indexOf("GET /mode/PwrOff") >= 0)
+            {
+              KillTask();
+              Serial.println("OFF");
+              currentMode = 0;
+              powerOff();
             }
             else if (header.indexOf("GET /mode/JumpDelay") >= 0)
             {
@@ -239,14 +261,18 @@ void loop()
             // buttons
             client.println("<p><a href=\"/mode/JumpDelay\"><button class=\"button\">jump delay to favorite " + favoriteToJumpTo + "</button></a></p>");
             client.println("<p><a href=\"/mode/JumpRandom\"><button class=\"button\">jump random to favorite " + favoriteToJumpTo + "</button></a></p>");
-            client.println("<p><a href=\"/mode/off\"><button class=\"button\">OFF</button></a></p>");
+            client.println("<p><a href=\"/mode/Modeoff\"><button class=\"button\">MODE OFF</button></a></p>");
+
 
             // form to go to channel
             client.println("<form action=\"/setChannel\" method=\"get\">");
-            client.println("<label for=\"setChannelInput\">Enter a delay(sec):</label>");
+            client.println("<label for=\"setChannelInput\">GoTo Channel:</label>");
             client.println("<input type=\"text\" id=\"setChannelInput\" name=\"setChannelInput\" required>");
             client.println("<input type=\"submit\" value=\"Submit\">");
             client.println("</form>");
+
+            client.println("<p><a href=\"/mode/PwrOn\"><button class=\"button\">ON</button></a></p>");
+            client.println("<p><a href=\"/mode/PwrOff\"><button class=\"button\">OFF</button></a></p>");
 
             client.println("</body></html>");
             // The HTTP response ends with another blank line
