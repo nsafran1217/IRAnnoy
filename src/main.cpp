@@ -1,35 +1,4 @@
-/*
- * SendProntoDemo.cpp
- *
- *  Example for sending pronto codes with the IRremote library.
- *  The code used here, sends NEC protocol data.
- *
- *  This file is part of Arduino-IRremote https://github.com/Arduino-IRremote/Arduino-IRremote.
- *
- ************************************************************************************
- * MIT License
- *
- * Copyright (c) 2020-2022 Armin Joachimsmeyer
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is furnished
- * to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
- * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- ************************************************************************************
- */
+
 #include <Arduino.h>
 
 #define DISABLE_CODE_FOR_RECEIVER // Disables restarting receiver after each send. Saves 450 bytes program memory and 269 bytes RAM if receiving functions are not used.
@@ -50,8 +19,8 @@ String header;
 int currentMode = 0; // Off, jumpDelay, jumpRandom
 String modes[] = {"Off", "Jump Delay", "Jump Random"};
 
-int channelNum = 2;
-String channelToJumpTo = "2";
+int favoriteNum = 2;
+String favoriteToJumpTo = "2";
 String secondsDelay = "60";
 uint32_t millisDelay = 1000000; // 100 seconds
 uint32_t nextMillis = 0;
@@ -60,7 +29,7 @@ struct TaskParameters
 {
   int currentMode;
   uint32_t millisDelay;
-  int channelNum;
+  int favoriteNum;
   // Add other required variables here
 };
 IRsend irsend;
@@ -100,15 +69,9 @@ void startTask()
   // Set initial values for the variables
   taskParams->currentMode = currentMode;
   taskParams->millisDelay = millisDelay;
-  taskParams->channelNum = channelNum;
+  taskParams->favoriteNum = favoriteNum;
 
-  // Check if a task is already running
-  if (sendingTaskHandle != NULL)
-  {
-    // Delete the existing task
-    vTaskDelete(sendingTaskHandle);
-    sendingTaskHandle = NULL;
-  }
+  KillTask();
 
   // Create a new task with the updated parameters
   xTaskCreate(
@@ -125,7 +88,39 @@ void cleanupTask(TaskParameters *params)
 {
   delete params;
 }
+void KillTask()
+{
+  currentMode = 0;
+  if (sendingTaskHandle != NULL)
+  {
+    // Delete the existing task
+    vTaskDelete(sendingTaskHandle);
+    sendingTaskHandle = NULL;
+  }
+}
+String getTextBoxValue(String InputName)
+{
+  int paramIndex = header.indexOf(InputName + "=");
+  if (paramIndex >= 0)
+  {
+    int endIndex = header.indexOf(" ", paramIndex);
+    String numberValue = header.substring(paramIndex + InputName.length(), endIndex);
+    return numberValue;
+  }
+  return "";
+}
 
+void setChannel(int channel)
+{
+  Serial.println(channel);
+  int channelTens = channel % 10;
+  int channelOnes = channel / 10;
+  irsend.sendPronto(DirectTuneBTN, NUMBER_OF_REPEATS);
+  delay(400);
+  irsend.sendPronto(numberBTNs[channelTens], NUMBER_OF_REPEATS);
+  delay(400);
+  irsend.sendPronto(numberBTNs[channelOnes], NUMBER_OF_REPEATS);
+}
 void loop()
 {
 
@@ -158,75 +153,51 @@ void loop()
             // turns the GPIOs on and off
             if (header.indexOf("GET /mode/off") >= 0)
             {
+              KillTask();
               Serial.println("set to off");
               currentMode = 0;
-              if (sendingTaskHandle != NULL)
-              {
-                // Delete the existing task
-                vTaskDelete(sendingTaskHandle);
-                sendingTaskHandle = NULL;
-              }
             }
             else if (header.indexOf("GET /mode/JumpDelay") >= 0)
             {
+              KillTask();
               Serial.println("set toJumpDelay");
-              if (sendingTaskHandle != NULL)
-              {
-                // Delete the existing task
-                vTaskDelete(sendingTaskHandle);
-                sendingTaskHandle = NULL;
-              }
               currentMode = 1;
               startTask();
             }
             else if (header.indexOf("GET /mode/JumpRandom") >= 0)
             {
+              KillTask();
               Serial.println("set to JumpRandom");
-              if (sendingTaskHandle != NULL)
-              {
-                // Delete the existing task
-                vTaskDelete(sendingTaskHandle);
-                sendingTaskHandle = NULL;
-              }
               currentMode = 2;
               startTask();
             }
             // Handle form submission
-            else if (header.indexOf("GET /channelNumber") >= 0)
+            else if (header.indexOf("GET favoriteNumber") >= 0)
             {
-              int paramIndex = header.indexOf("channelNumberInput=");
-              if (paramIndex >= 0)
+              KillTask();
+              if (favoriteToJumpTo = getTextBoxValue("favoriteNumberInput"))
               {
-                if (sendingTaskHandle != NULL)
-                {
-                  // Delete the existing task
-                  vTaskDelete(sendingTaskHandle);
-                  sendingTaskHandle = NULL;
-                }
-                int endIndex = header.indexOf(" ", paramIndex);
-                String numberValue = header.substring(paramIndex + 19, endIndex);
-                channelToJumpTo = numberValue;
-                Serial.println("Set channelToJumpTo to: " + channelToJumpTo);
-                channelNum = channelToJumpTo.toInt();
+                Serial.println("Set favoriteToJumpTo to: " + favoriteToJumpTo);
+                favoriteNum = favoriteToJumpTo.toInt();
               }
             }
             // Handle form submission for delayNumber
             else if (header.indexOf("GET /delayNumber") >= 0)
             {
-              int paramIndex = header.indexOf("delayNumberInput=");
-              if (paramIndex >= 0)
+              KillTask();
+              if (secondsDelay = getTextBoxValue("delayNumberInput"))
               {
-                if (sendingTaskHandle != NULL)
-                {
-                  // Delete the existing task
-                  vTaskDelete(sendingTaskHandle);
-                  sendingTaskHandle = NULL;
-                }
-                int endIndex = header.indexOf(" ", paramIndex);
-                String delayValue = header.substring(paramIndex + 17, endIndex);
-                secondsDelay = delayValue;
                 Serial.println("Set secondsDelay to: " + secondsDelay);
                 millisDelay = secondsDelay.toInt() * 1000;
+              }
+            }
+            else if (header.indexOf("GET /setChannel") >= 0)
+            {
+              KillTask();
+              if (String channel = getTextBoxValue("setChannelInput"))
+              {
+                Serial.println("Set channel to: " + channel);
+                setChannel(channel.toInt());
               }
             }
 
@@ -247,32 +218,37 @@ void loop()
             // Display current state
             client.println("<p>Current Mode: " + modes[currentMode] + "</p>");
 
-            // Display current channelToJumpTo value
-            client.println("<p>Current Favorite: " + channelToJumpTo + "</p>");
-
+            // Display current values
+            client.println("<p>Current Favorite: " + favoriteToJumpTo + "</p>");
             client.println("<p>Current delay: " + secondsDelay + "</p>");
 
-            // Add a form with a text input for the user to enter a number
-            client.println("<form action=\"/channelNumber\" method=\"get\">");
-            client.println("<label for=\"channelNumberInput\">Enter a Favorite:</label>");
-            client.println("<input type=\"text\" id=\"channelNumberInput\" name=\"channelNumberInput\" required>");
+            // form to get favorite number
+            client.println("<form action=\"favoriteNumber\" method=\"get\">");
+            client.println("<label for=\"favoriteNumberInput\">Enter a Favorite:</label>");
+            client.println("<input type=\"text\" id=\"favoriteNumberInput\" name=\"favoriteNumberInput\" required>");
             client.println("<input type=\"submit\" value=\"Submit\">");
             client.println("</form>");
 
-            // Add a form with a text input for the user to enter a number
+            // for to get delay time
             client.println("<form action=\"/delayNumber\" method=\"get\">");
             client.println("<label for=\"delayNumberInput\">Enter a delay(sec):</label>");
             client.println("<input type=\"text\" id=\"delayNumberInput\" name=\"delayNumberInput\" required>");
             client.println("<input type=\"submit\" value=\"Submit\">");
             client.println("</form>");
 
-            client.println("<p><a href=\"/mode/JumpDelay\"><button class=\"button\">jump delay to favorite " + channelToJumpTo + "</button></a></p>");
-            client.println("<p><a href=\"/mode/JumpRandom\"><button class=\"button\">jump random to favorite " + channelToJumpTo + "</button></a></p>");
-
+            // buttons
+            client.println("<p><a href=\"/mode/JumpDelay\"><button class=\"button\">jump delay to favorite " + favoriteToJumpTo + "</button></a></p>");
+            client.println("<p><a href=\"/mode/JumpRandom\"><button class=\"button\">jump random to favorite " + favoriteToJumpTo + "</button></a></p>");
             client.println("<p><a href=\"/mode/off\"><button class=\"button\">OFF</button></a></p>");
 
-            client.println("</body></html>");
+            // form to go to channel
+            client.println("<form action=\"/setChannel\" method=\"get\">");
+            client.println("<label for=\"setChannelInput\">Enter a delay(sec):</label>");
+            client.println("<input type=\"text\" id=\"setChannelInput\" name=\"setChannelInput\" required>");
+            client.println("<input type=\"submit\" value=\"Submit\">");
+            client.println("</form>");
 
+            client.println("</body></html>");
             // The HTTP response ends with another blank line
             client.println();
             // Break out of the while loop
@@ -307,7 +283,7 @@ void doTheSendingTask(void *parameter)
   uint32_t nextMillisTask = 0;
   int mode = params->currentMode;
   uint32_t millisDelayTask = params->millisDelay;
-  int channelTask = params->channelNum;
+  int channelTask = params->favoriteNum;
   cleanupTask(params);
   while (1)
   {
