@@ -71,7 +71,12 @@ void startTask()
   taskParams->millisDelay = millisDelay;
   taskParams->favoriteNum = favoriteNum;
 
-  KillTask();
+  if (sendingTaskHandle != NULL)
+  {
+    // Delete the existing task
+    vTaskDelete(sendingTaskHandle);
+    sendingTaskHandle = NULL;
+  }
 
   // Create a new task with the updated parameters
   xTaskCreate(
@@ -117,17 +122,14 @@ void setChannel(int channel)
   int channelOnes = channel / 10;
   irsend.sendPronto(DirectTuneBTN, NUMBER_OF_REPEATS);
   delay(400);
-  irsend.sendPronto(numberBTNs[channelTens], NUMBER_OF_REPEATS);
-  delay(400);
   irsend.sendPronto(numberBTNs[channelOnes], NUMBER_OF_REPEATS);
+  delay(400);
+  irsend.sendPronto(numberBTNs[channelTens], NUMBER_OF_REPEATS);
 }
-void powerOn()
+
+void powerBtn()
 {
-  irsend.sendPronto(PowerOnBTN, NUMBER_OF_REPEATS);
-}
-void powerOff()
-{
-  irsend.sendPronto(PowerOffBTN, NUMBER_OF_REPEATS);
+  irsend.sendPronto(PowerBTN, NUMBER_OF_REPEATS);
 }
 void loop()
 {
@@ -165,20 +167,14 @@ void loop()
               Serial.println("set to off");
               currentMode = 0;
             }
-            else if (header.indexOf("GET /mode/PwrOn") >= 0)
+            else if (header.indexOf("GET /mode/Pwr") >= 0)
             {
               KillTask();
-              Serial.println("ON");
+              Serial.println("PWR");
               currentMode = 0;
-              powerOff();
+              powerBtn();
             }
-            else if (header.indexOf("GET /mode/PwrOff") >= 0)
-            {
-              KillTask();
-              Serial.println("OFF");
-              currentMode = 0;
-              powerOff();
-            }
+
             else if (header.indexOf("GET /mode/JumpDelay") >= 0)
             {
               KillTask();
@@ -271,8 +267,8 @@ void loop()
             client.println("<input type=\"submit\" value=\"Submit\">");
             client.println("</form>");
 
-            client.println("<p><a href=\"/mode/PwrOn\"><button class=\"button\">ON</button></a></p>");
-            client.println("<p><a href=\"/mode/PwrOff\"><button class=\"button\">OFF</button></a></p>");
+            client.println("<p><a href=\"/mode/Pwr\"><button class=\"button\">POWER</button></a></p>");
+            //client.println("<p><a href=\"/mode/PwrOff\"><button class=\"button\">OFF</button></a></p>");
 
             client.println("</body></html>");
             // The HTTP response ends with another blank line
