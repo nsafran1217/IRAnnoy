@@ -127,6 +127,11 @@ void setChannel(int channel)
   irsend.sendPronto(numberBTNs[channelTens], NUMBER_OF_REPEATS);
 }
 
+void setFave(int fave)
+{
+  Serial.println(fave);
+  irsend.sendPronto(numberBTNs[fave], NUMBER_OF_REPEATS);
+}
 void powerBtn()
 {
   irsend.sendPronto(PowerBTN, NUMBER_OF_REPEATS);
@@ -218,6 +223,15 @@ void loop()
                 setChannel(channel.toInt());
               }
             }
+                       else if (header.indexOf("GET /setFave") >= 0)
+            {
+              KillTask();
+              if (String fave = getTextBoxValue("setFaveInput"))
+              {
+                Serial.println("Set fave to: " + fave);
+                setFave(fave.toInt());
+              }
+            }
 
             // Display the HTML web page
             client.println("<!DOCTYPE html><html>");
@@ -264,6 +278,13 @@ void loop()
             client.println("<form action=\"/setChannel\" method=\"get\">");
             client.println("<label for=\"setChannelInput\">GoTo Channel:</label>");
             client.println("<input type=\"text\" id=\"setChannelInput\" name=\"setChannelInput\" required>");
+            client.println("<input type=\"submit\" value=\"Submit\">");
+            client.println("</form>");
+
+            // form to go to favorite
+            client.println("<form action=\"/setFave\" method=\"get\">");
+            client.println("<label for=\"setFaveInput\">GoTo Channel:</label>");
+            client.println("<input type=\"text\" id=\"setFaveInput\" name=\"setFaveInput\" required>");
             client.println("<input type=\"submit\" value=\"Submit\">");
             client.println("</form>");
 
